@@ -1,0 +1,227 @@
+--[[
+    SISTEMA DE NOCLIP PROFESIONAL PARA ROBLOX STUDIO
+    Instrucciones: Coloca este LocalScript dentro de StarterPlayer > StarterPlayerScripts
+    o dentro de StarterGui para que se ejecute automáticamente al iniciar el juego.
+]]
+
+-- ========================================
+-- SERVICIOS NECESARIOS
+-- ========================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- ========================================
+-- VARIABLES PRINCIPALES
+-- ========================================
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+local noclipEnabled = false
+local noclipConnection = nil
+
+-- ========================================
+-- CREAR INTERFAZ DE USUARIO (GUI)
+-- ========================================
+
+-- ScreenGui principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NoclipGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- Frame principal (contenedor arrastrable)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 220, 0, 80)
+mainFrame.Position = UDim2.new(0.5, -110, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true -- Hace que el frame sea arrastrable
+mainFrame.Parent = screenGui
+
+-- Bordes redondeados
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = mainFrame
+
+-- Sombra sutil (efecto visual)
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(255, 255, 255)
+uiStroke.Thickness = 1
+uiStroke.Transparency = 0.8
+uiStroke.Parent = mainFrame
+
+-- Texto indicador "Noclip: OFF"
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0, 130, 1, 0)
+statusLabel.Position = UDim2.new(0, 15, 0, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Noclip: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.TextSize = 18
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = mainFrame
+
+-- ========================================
+-- CREAR BOTÓN TOGGLE (SWITCH)
+-- ========================================
+
+-- Contenedor del switch
+local switchContainer = Instance.new("Frame")
+switchContainer.Name = "SwitchContainer"
+switchContainer.Size = UDim2.new(0, 60, 0, 30)
+switchContainer.Position = UDim2.new(1, -75, 0.5, -15)
+switchContainer.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+switchContainer.BorderSizePixel = 0
+switchContainer.Parent = mainFrame
+
+local switchCorner = Instance.new("UICorner")
+switchCorner.CornerRadius = UDim.new(1, 0)
+switchCorner.Parent = switchContainer
+
+-- Círculo del switch (se mueve al activar)
+local switchCircle = Instance.new("Frame")
+switchCircle.Name = "SwitchCircle"
+switchCircle.Size = UDim2.new(0, 24, 0, 24)
+switchCircle.Position = UDim2.new(0, 3, 0.5, -12)
+switchCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+switchCircle.BorderSizePixel = 0
+switchCircle.Parent = switchContainer
+
+local circleCorner = Instance.new("UICorner")
+circleCorner.CornerRadius = UDim.new(1, 0)
+circleCorner.Parent = switchCircle
+
+-- Botón invisible para detectar clics
+local switchButton = Instance.new("TextButton")
+switchButton.Name = "SwitchButton"
+switchButton.Size = UDim2.new(1, 0, 1, 0)
+switchButton.BackgroundTransparency = 1
+switchButton.Text = ""
+switchButton.Parent = switchContainer
+
+-- ========================================
+-- FUNCIONES DEL NOCLIP
+-- ========================================
+
+-- Función para activar/desactivar colisiones
+local function setNoclip(enabled)
+    if not character then return end
+    
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not enabled
+        end
+    end
+end
+
+-- Función para activar el Noclip
+local function enableNoclip()
+    noclipEnabled = true
+    
+    -- Actualizar UI
+    statusLabel.Text = "Noclip: ON"
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    
+    -- Animar el switch (mover círculo y cambiar color)
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    
+    local circleTween = TweenService:Create(switchCircle, tweenInfo, {
+        Position = UDim2.new(1, -27, 0.5, -12)
+    })
+    
+    local containerTween = TweenService:Create(switchContainer, tweenInfo, {
+        BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    })
+    
+    circleTween:Play()
+    containerTween:Play()
+    
+    -- Conectar al RunService.Stepped para mantener el noclip activo
+    noclipConnection = RunService.Stepped:Connect(function()
+        setNoclip(true)
+    end)
+end
+
+-- Función para desactivar el Noclip
+local function disableNoclip()
+    noclipEnabled = false
+    
+    -- Actualizar UI
+    statusLabel.Text = "Noclip: OFF"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    -- Animar el switch (regresar círculo y color)
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    
+    local circleTween = TweenService:Create(switchCircle, tweenInfo, {
+        Position = UDim2.new(0, 3, 0.5, -12)
+    })
+    
+    local containerTween = TweenService:Create(switchContainer, tweenInfo, {
+        BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    })
+    
+    circleTween:Play()
+    containerTween:Play()
+    
+    -- Desconectar del RunService
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+    
+    -- Restaurar colisiones
+    setNoclip(false)
+end
+
+-- Toggle entre ON/OFF
+local function toggleNoclip()
+    if noclipEnabled then
+        disableNoclip()
+    else
+        enableNoclip()
+    end
+end
+
+-- ========================================
+-- EVENTOS
+-- ========================================
+
+-- Detectar clic en el botón
+switchButton.MouseButton1Click:Connect(toggleNoclip)
+
+-- Detectar tecla "N" para activar/desactivar (opcional)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.N then
+        toggleNoclip()
+    end
+end)
+
+-- Actualizar character si el jugador muere y respawnea
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Si el noclip estaba activo, desactivarlo al respawnear
+    if noclipEnabled then
+        disableNoclip()
+    end
+end)
+
+-- ========================================
+-- MENSAJE DE CONFIRMACIÓN
+-- ========================================
+print("✅ Sistema de Noclip cargado correctamente")
+print("💡 Presiona 'N' o usa el switch para activar/desactivar")
